@@ -17,26 +17,74 @@ import (
 func AttachmentToText(att slack.Attachment) string {
 	var parts []string
 
-	if att.Title != "" {
-		parts = append(parts, fmt.Sprintf("Title: %s", att.Title))
+	// Service name (e.g., "Email", "GitHub", etc.)
+	if att.ServiceName != "" {
+		parts = append(parts, fmt.Sprintf("Service: %s", att.ServiceName))
 	}
 
+	// Author info (email sender for forwarded emails)
 	if att.AuthorName != "" {
-		parts = append(parts, fmt.Sprintf("Author: %s", att.AuthorName))
+		parts = append(parts, fmt.Sprintf("From: %s", att.AuthorName))
+	}
+	if att.AuthorSubname != "" {
+		parts = append(parts, fmt.Sprintf("  %s", att.AuthorSubname))
 	}
 
+	// Title (email subject for forwarded emails)
+	if att.Title != "" {
+		parts = append(parts, fmt.Sprintf("Subject: %s", att.Title))
+	}
+
+	// Title link
+	if att.TitleLink != "" {
+		parts = append(parts, fmt.Sprintf("Link: %s", att.TitleLink))
+	}
+
+	// Pretext (context before main content)
 	if att.Pretext != "" {
 		parts = append(parts, fmt.Sprintf("Pretext: %s", att.Pretext))
 	}
 
+	// Main text content (email body for forwarded emails)
 	if att.Text != "" {
-		parts = append(parts, fmt.Sprintf("Text: %s", att.Text))
+		parts = append(parts, fmt.Sprintf("Body: %s", att.Text))
 	}
 
+	// Fallback text (used when other content isn't displayable)
+	if att.Fallback != "" && att.Text == "" {
+		parts = append(parts, fmt.Sprintf("Content: %s", att.Fallback))
+	}
+
+	// Fields (structured data - common in email headers and integrations)
+	for _, field := range att.Fields {
+		if field.Title != "" && field.Value != "" {
+			parts = append(parts, fmt.Sprintf("%s: %s", field.Title, field.Value))
+		} else if field.Value != "" {
+			parts = append(parts, field.Value)
+		}
+	}
+
+	// Footer with timestamp
 	if att.Footer != "" {
 		ts, _ := TimestampToIsoRFC3339(string(att.Ts) + ".000000")
-
 		parts = append(parts, fmt.Sprintf("Footer: %s @ %s", att.Footer, ts))
+	}
+
+	// Image URL
+	if att.ImageURL != "" {
+		parts = append(parts, fmt.Sprintf("Image: %s", att.ImageURL))
+	}
+
+	// Thumbnail URL
+	if att.ThumbURL != "" {
+		parts = append(parts, fmt.Sprintf("Thumbnail: %s", att.ThumbURL))
+	}
+
+	// Actions (interactive buttons)
+	for _, action := range att.Actions {
+		if action.Text != "" {
+			parts = append(parts, fmt.Sprintf("[Action: %s]", action.Text))
+		}
 	}
 
 	result := strings.Join(parts, "; ")

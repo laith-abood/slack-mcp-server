@@ -49,6 +49,11 @@ type Message struct {
 	Time      string `json:"time"`
 	Reactions string `json:"reactions,omitempty"`
 	Cursor    string `json:"cursor"`
+
+	// Rich content support
+	HasRichContent bool   `json:"hasRichContent"`
+	AttachmentText string `json:"attachmentText,omitempty"`
+	FilesInfo      string `json:"filesInfo,omitempty"`
 }
 
 type User struct {
@@ -389,7 +394,8 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			continue
 		}
 
-		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+		// Build full text including attachments, blocks, and files
+		fullText, attachmentText, filesInfo, hasRichContent := ExtractMessageContent(msg)
 
 		var reactionParts []string
 		for _, r := range msg.Reactions {
@@ -398,15 +404,18 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 		reactionsString := strings.Join(reactionParts, "|")
 
 		messages = append(messages, Message{
-			MsgID:     msg.Timestamp,
-			UserID:    msg.User,
-			UserName:  userName,
-			RealName:  realName,
-			Text:      text.ProcessText(msgText),
-			Channel:   channel,
-			ThreadTs:  msg.ThreadTimestamp,
-			Time:      timestamp,
-			Reactions: reactionsString,
+			MsgID:          msg.Timestamp,
+			UserID:         msg.User,
+			UserName:       userName,
+			RealName:       realName,
+			Text:           text.ProcessText(fullText),
+			Channel:        channel,
+			ThreadTs:       msg.ThreadTimestamp,
+			Time:           timestamp,
+			Reactions:      reactionsString,
+			HasRichContent: hasRichContent,
+			AttachmentText: attachmentText,
+			FilesInfo:      filesInfo,
 		})
 	}
 
@@ -443,18 +452,28 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			continue
 		}
 
-		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+		// Build full text including attachments, blocks, and files. Search API returns
+		// slack.SearchMessage, so construct a minimal slack.Message wrapper.
+		fullText, attachmentText, filesInfo, hasRichContent := ExtractMessageContent(slack.Message{
+			Msg: slack.Msg{
+				Text:        msg.Text,
+				Attachments: msg.Attachments,
+			},
+		})
 
 		messages = append(messages, Message{
-			MsgID:     msg.Timestamp,
-			UserID:    msg.User,
-			UserName:  userName,
-			RealName:  realName,
-			Text:      text.ProcessText(msgText),
-			Channel:   fmt.Sprintf("#%s", msg.Channel.Name),
-			ThreadTs:  threadTs,
-			Time:      timestamp,
-			Reactions: "",
+			MsgID:          msg.Timestamp,
+			UserID:         msg.User,
+			UserName:       userName,
+			RealName:       realName,
+			Text:           text.ProcessText(fullText),
+			Channel:        fmt.Sprintf("#%s", msg.Channel.Name),
+			ThreadTs:       threadTs,
+			Time:           timestamp,
+			Reactions:      "",
+			HasRichContent: hasRichContent,
+			AttachmentText: attachmentText,
+			FilesInfo:      filesInfo,
 		})
 	}
 
