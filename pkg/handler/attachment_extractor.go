@@ -139,11 +139,6 @@ func ExtractAttachmentText(attachments []slack.Attachment) string {
 			parts = append(parts, "Thumbnail: "+att.ThumbURL)
 		}
 
-		// Video URL (HTML embed)
-		if att.VideoHTML != "" {
-			parts = append(parts, "[Video Embedded]")
-		}
-
 		// Actions (interactive buttons)
 		for _, action := range att.Actions {
 			if action.Text != "" {
@@ -350,9 +345,9 @@ func extractRichTextList(list *slack.RichTextList) string {
 			prefix = strings.Repeat("  ", list.Indent) + prefix
 		}
 
-		switch elem := item.(type) {
-		case *slack.RichTextSection:
-			text := extractRichTextSection(elem)
+		// RichTextList.Elements are RichTextElement, which can be RichTextSection
+		if section, ok := item.(*slack.RichTextSection); ok {
+			text := extractRichTextSection(section)
 			items = append(items, prefix+text)
 		}
 	}
@@ -360,31 +355,47 @@ func extractRichTextList(list *slack.RichTextList) string {
 }
 
 func extractRichTextQuote(quote *slack.RichTextQuote) string {
-	var parts []string
+	// RichTextQuote is defined as RichTextSection, so it has Elements []RichTextSectionElement
+	// We extract text from its elements directly
+	var textParts []string
 	for _, elem := range quote.Elements {
 		switch e := elem.(type) {
-		case *slack.RichTextSection:
-			text := extractRichTextSection(e)
-			// Add quote prefix to each line
-			lines := strings.Split(text, "\n")
-			for _, line := range lines {
-				parts = append(parts, "> "+line)
+		case *slack.RichTextSectionTextElement:
+			textParts = append(textParts, e.Text)
+		case *slack.RichTextSectionLinkElement:
+			if e.Text != "" {
+				textParts = append(textParts, e.Text)
+			} else {
+				textParts = append(textParts, e.URL)
 			}
 		}
+	}
+	text := strings.Join(textParts, "")
+	// Add quote prefix to each line
+	var parts []string
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		parts = append(parts, "> "+line)
 	}
 	return strings.Join(parts, "\n")
 }
 
 func extractRichTextPreformatted(pre *slack.RichTextPreformatted) string {
-	var parts []string
+	// RichTextPreformatted is similar to RichTextSection, has Elements []RichTextSectionElement
+	var textParts []string
 	for _, elem := range pre.Elements {
 		switch e := elem.(type) {
-		case *slack.RichTextSection:
-			text := extractRichTextSection(e)
-			parts = append(parts, text)
+		case *slack.RichTextSectionTextElement:
+			textParts = append(textParts, e.Text)
+		case *slack.RichTextSectionLinkElement:
+			if e.Text != "" {
+				textParts = append(textParts, e.Text)
+			} else {
+				textParts = append(textParts, e.URL)
+			}
 		}
 	}
-	return "```\n" + strings.Join(parts, "\n") + "\n```"
+	return "```\n" + strings.Join(textParts, "") + "\n```"
 }
 
 // FileInfo represents extracted file metadata
