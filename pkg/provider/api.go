@@ -68,6 +68,12 @@ type Channel struct {
 	Members     []string `json:"members,omitempty"` // Member IDs for the channel
 }
 
+// RawClients provides access to underlying Slack and Edge clients
+type RawClients struct {
+	Slack *slack.Client
+	Edge  *edge.Client
+}
+
 type SlackAPI interface {
 	// Standard slack-go API methods
 	AuthTest() (*slack.AuthTestResponse, error)
@@ -87,6 +93,9 @@ type SlackAPI interface {
 
 	// Edge API methods
 	ClientUserBoot(ctx context.Context) (*edge.ClientUserBootResponse, error)
+
+	// Raw client access for file operations
+	Raw() RawClients
 }
 
 type MCPSlackClient struct {
@@ -300,14 +309,8 @@ func (c *MCPSlackClient) IsBotToken() bool {
 	return c.isBotToken
 }
 
-func (c *MCPSlackClient) Raw() struct {
-	Slack *slack.Client
-	Edge  *edge.Client
-} {
-	return struct {
-		Slack *slack.Client
-		Edge  *edge.Client
-	}{
+func (c *MCPSlackClient) Raw() RawClients {
+	return RawClients{
 		Slack: c.slackClient,
 		Edge:  c.edgeClient,
 	}

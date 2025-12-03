@@ -140,6 +140,37 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 	}
 
 	channelsHandler := handler.NewChannelsHandler(provider, logger)
+	filesHandler := handler.NewFilesHandler(provider, logger)
+
+	// File tools for accessing attached files
+	s.AddTool(mcp.NewTool("files_list",
+		mcp.WithDescription("List files uploaded to Slack, optionally filtered by channel or user. Returns file IDs that can be used with files_get_content."),
+		mcp.WithString("channel_id",
+			mcp.Description("Filter files by channel ID or name (e.g., 'C1234567890' or '#emails'). Optional."),
+		),
+		mcp.WithString("user_id",
+			mcp.Description("Filter files by user ID (e.g., 'U1234567890'). Optional."),
+		),
+		mcp.WithString("types",
+			mcp.Description("Filter by file types. Comma-separated. Options: all, spaces, snippets, images, gdocs, zips, pdfs. Default: all."),
+		),
+		mcp.WithNumber("count",
+			mcp.DefaultNumber(20),
+			mcp.Description("Number of files to return (1-100). Default: 20."),
+		),
+	), filesHandler.FilesListHandler)
+
+	s.AddTool(mcp.NewTool("files_get_content",
+		mcp.WithDescription("Download and return the content of a Slack file by its ID. For HTML files (like forwarded emails), automatically extracts readable text. Max file size: 1MB."),
+		mcp.WithString("file_id",
+			mcp.Required(),
+			mcp.Description("The file ID to retrieve content from (e.g., 'F1234567890'). Get file IDs from files_list or from message attachments."),
+		),
+		mcp.WithBoolean("extract_text",
+			mcp.DefaultBool(true),
+			mcp.Description("For HTML files, extract readable text instead of returning raw HTML. Default: true."),
+		),
+	), filesHandler.FilesGetContentHandler)
 
 	s.AddTool(mcp.NewTool("channels_list",
 		mcp.WithDescription("Get list of channels"),
