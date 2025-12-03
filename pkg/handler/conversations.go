@@ -458,6 +458,7 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			Msg: slack.Msg{
 				Text:        msg.Text,
 				Attachments: msg.Attachments,
+				Blocks:      msg.Blocks,
 			},
 		})
 
